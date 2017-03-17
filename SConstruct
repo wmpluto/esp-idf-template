@@ -132,3 +132,22 @@ APP_BIN = os.path.join(BUILD_DIR_BASE , PROJECT_NAME + '.bin')
 program = DoBuilding(APP_ELF, libs)
 env.Depends(program, outld)
 binfile = env.ConvertELF(APP_BIN, program)
+Import('bootbin')
+Import('partition')
+AddOption('--flash',
+            action = 'store_true',
+            default=False,
+            help='flash it')
+
+if GetOption('flash'):
+    flsh = ('python %s/components/esptool_py/esptool/esptool.py --chip esp32 --port %s --baud %s '+\
+                '--before %s --after %s write_flash -%s --flash_mode %s  --flash_freq %s --flash_size detect '+\
+                '0x1000 build/bootloader.bin 0x10000 build/template.bin 0x8000 build/partitions_singleapp.bin') %\
+            (IDF_PATH, BuildOptions['CONFIG_ESPTOOLPY_PORT'], BuildOptions['CONFIG_ESPTOOLPY_BAUD'],
+                BuildOptions['CONFIG_ESPTOOLPY_BEFORE'], BuildOptions['CONFIG_ESPTOOLPY_AFTER'],
+                'z' if BuildOptions['CONFIG_ESPTOOLPY_COMPRESSED'] == 1 else 'u', 
+                BuildOptions['CONFIG_ESPTOOLPY_FLASHMODE'],BuildOptions['CONFIG_ESPTOOLPY_FLASHFREQ'])
+    if GetOption('flash'):
+        env.Command('None', [binfile,bootbin,partition], flsh)
+
+
