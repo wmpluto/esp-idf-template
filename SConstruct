@@ -145,7 +145,7 @@ if GetOption('flash'):
                 '0x1000 build/bootloader.bin 0x10000 build/template.bin 0x8000 build/partitions_singleapp.bin') %\
             (IDF_PATH, BuildOptions['CONFIG_ESPTOOLPY_PORT'], BuildOptions['CONFIG_ESPTOOLPY_BAUD'],
                 BuildOptions['CONFIG_ESPTOOLPY_BEFORE'], BuildOptions['CONFIG_ESPTOOLPY_AFTER'],
-                'z' if BuildOptions['CONFIG_ESPTOOLPY_COMPRESSED'] == 1 else 'u', 
+                'z' if BuildOptions.has_key('CONFIG_ESPTOOLPY_COMPRESSED') == 1 else 'u', 
                 BuildOptions['CONFIG_ESPTOOLPY_FLASHMODE'],BuildOptions['CONFIG_ESPTOOLPY_FLASHFREQ'])
     if GetOption('flash'):
         env.Command('None', [binfile,bootbin,partition], flsh)
