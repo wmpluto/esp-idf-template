@@ -11,6 +11,8 @@ IDF_PATH = os.getenv('IDF_PATH')
 VDIR = 'build'
 BUILD_DIR_BASE = os.path.join(PROJECT_PATH, VDIR)
 
+COMPONENT_DIR = os.path.join(IDF_PATH, 'components')
+
 IDF_VER = os.popen('git -C %s describe' % IDF_PATH).read().strip()
 
 PREFIX = 'xtensa-esp32-elf-'
@@ -48,12 +50,13 @@ COMMON_FLAGS += ' -fstrict-volatile-bitfields'
 COMMON_FLAGS += ' -mlongcalls'
 COMMON_FLAGS += ' -nostdlib'
 
-if BuildOptions.has_key('CONFIG_OPTIMIZATION_LEVEL_RELEASE'):
-    OPTIMIZATION_FLAGS = ' -Os'
-    CPPFLAGS += ' -DNDEBUG'
-else:
-    OPTIMIZATION_FLAGS = ' -Og'
-OPTIMIZATION_FLAGS += ' -ggdb'
+# if BuildOptions.has_key('CONFIG_OPTIMIZATION_LEVEL_RELEASE'):
+#     OPTIMIZATION_FLAGS = ' -Os'
+#     CPPFLAGS += ' -DNDEBUG'
+# else:
+#     OPTIMIZATION_FLAGS = ' -Og'
+OPTIMIZATION_FLAGS = ' -Os -ggdb'
+CPPFLAGS += ' -DNDEBUG'
 
 CFLAGS  = ' -std=gnu99'
 CFLAGS += OPTIMIZATION_FLAGS
@@ -67,7 +70,7 @@ CXXFLAGS += OPTIMIZATION_FLAGS
 CXXFLAGS += COMMON_FLAGS
 CXXFLAGS += COMMON_WARNING_FLAGS
 
-CPPPATH  = COMPONENT_INCLUDES + [PROJECT_PATH]
+CPPPATH  = [PROJECT_PATH]
 
 def handleConfig(source, target):
 	file_object = open(source)
@@ -78,7 +81,7 @@ def handleConfig(source, target):
 
 	newconfig = []
 	pattern = r'(.*)=(.*)'
-
+ 
 	for line in sdkconfig:
 		m = re.match(pattern, line)
 		if m:
