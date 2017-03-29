@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import SCons
 import string
 
 
@@ -98,3 +99,33 @@ def handleConfig(source, target):
 	     file_object.close()
 
 	return "\n".join(newconfig)
+
+def checkDirs(path):
+	if os.path.exists(path):
+		return True
+	else:
+		return os.makedirs(path)
+
+def GetDepend(BuildOptions, depend):
+    building = True
+    if type(depend) == type('str'):
+        if not BuildOptions.has_key(depend) or BuildOptions[depend] == 0:
+            building = False
+        elif BuildOptions[depend] != '':
+            return BuildOptions[depend]
+
+        return building
+
+    # for list type depend
+    for item in depend:
+        if item != '':
+            if not BuildOptions.has_key(item) or BuildOptions[item] == 0:
+                building = False
+
+    return building
+
+def GlobDirs(path, dirs):
+	out = []
+	for dir in dirs:
+		out.extend(SCons.Glob(os.path.join(path, dir)))
+	return out
