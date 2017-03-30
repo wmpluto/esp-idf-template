@@ -123,9 +123,3 @@ def GetDepend(BuildOptions, depend):
                 building = False
 
     return building
-
-def GlobDirs(path, dirs):
-	out = []
-	for dir in dirs:
-		out.extend(SCons.Glob(os.path.join(path, dir)))
-	return out
