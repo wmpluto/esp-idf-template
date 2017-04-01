@@ -34,9 +34,10 @@ LDFLAGS += ' -Wl,-static'
 LDFLAGS += ' -Wl,--start-group'
 LDFLAGS += ' -lgcc'
 LDFLAGS += ' -lstdc++'
-LDFLAGS += ' -Wl,--allow-multiple-definition'
+LDFLAGS += ' -Wl,--allow-multiple-definition '
 
-CPPFLAGS = ' -DESP_PLATFORM -D IDF_VER=\\"%s\\" -MMD -MP' % IDF_VER
+# CPPFLAGS = ' -DESP_PLATFORM -D IDF_VER=\\"%s\\" -MMD -MP' % IDF_VER
+CPPFLAGS = ' -DESP_PLATFORM -D IDF_VER=\\"%s\\"' % IDF_VER
 
 COMMON_WARNING_FLAGS  = ' -Wall -Werror=all'
 COMMON_WARNING_FLAGS += ' -Wno-error=unused-function'
@@ -72,6 +73,10 @@ CXXFLAGS += COMMON_FLAGS
 CXXFLAGS += COMMON_WARNING_FLAGS
 
 CPPPATH  = [PROJECT_PATH]
+
+APP_ELF = os.path.join(PROJECT_PATH , PROJECT_NAME + '.elf')
+APP_MAP = os.path.join(PROJECT_PATH , PROJECT_NAME + '.map')
+APP_BIN = os.path.join(PROJECT_PATH , PROJECT_NAME + '.bin')
 
 def handleConfig(source, target):
 	file_object = open(source)

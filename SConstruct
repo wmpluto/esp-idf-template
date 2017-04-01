@@ -4,10 +4,31 @@ import sys
 import SCons
 from config import *
 
-contents = handleConfig('sdkconfig', os.path.join(BUILD_DIR_BASE, 'include'))
+VariantDir('build', COMPONENT_DIR)
+env = Environment(
+    AS = AS, ASFLAGS = CPPFLAGS, 
+    CC = CC, CFLAGS = CFLAGS + CPPFLAGS,
+    AR = AR, ARFLAGS = 'cru',
+    LINK = LD, LINKFLAGS = LDFLAGS,
+    CXX = CXX, CXXFLAGS = CXXFLAGS + CPPFLAGS,
+    CPPPATH = CPPPATH,
+    ENV = os.environ)
+env.Replace(LINKCOM = ['$LINK -o $TARGET $LINKFLAGS $__RPATH  $SOURCES $_LIBDIRFLAGS $_LIBFLAGS -Wl,--end-group -Wl,-EL -Wl,-Map=template.map'])
+
+# convert sdkconfig to sdkconfig.h
+contents = handleConfig('sdkconfig', PROJECT_PATH)
 PreProcessor = SCons.cpp.PreProcessor()
 PreProcessor.process_contents(contents)
 BuildOptions = PreProcessor.cpp_namespace
+
+bld = Builder(action = '$CC -o $TARGET -I%s -C -P -x c -E $SOURCE'% PROJECT_PATH)
+env.Append(BUILDERS = {'Outld': bld})
+
+convert = 'python %s/components/esptool_py/esptool/esptool.py --chip esp32 elf2image --flash_mode %s --flash_freq %s --flash_size %s -o $TARGET $SOURCE ' % (
+                            IDF_PATH, BuildOptions['CONFIG_ESPTOOLPY_FLASHMODE'], 
+                            BuildOptions['CONFIG_ESPTOOLPY_FLASHFREQ'], BuildOptions['CONFIG_ESPTOOLPY_FLASHSIZE'])
+cvt= Builder(action = convert)
+env.Append(BUILDERS = {'ConvertELF': cvt})
 
 group = []
 # main 
@@ -48,7 +69,7 @@ group.append({
 
 # coap 
 
-# components
+# # components
 # name = 'components'
 # path = os.path.join(COMPONENT_DIR, name)
 # src = [ Glob(os.path.join(path, item)) for item in [
@@ -61,7 +82,7 @@ group.append({
 # group.append({
 # 	'name': name,
 # 	'path': path,
-# 	'src': src,
+# 	'src': sum(src, []),
 # 	'CPPPATH': CPPPATH
 # 	})
 
@@ -169,7 +190,7 @@ group.append({
 name = 'freertos'
 path = os.path.join(COMPONENT_DIR, name)
 src = Glob(os.path.join(path, '*.[cS]'))
-CPPPATH = ['/include', '/include/freertos', '/include/rtthread']
+CPPPATH = ['include', 'include/freertos', 'include/rtthread']
 LINKFLAGS = ['-Wl,--undefined=uxTopUsedPriority']
 group.append({
 	'name': name,
@@ -265,7 +286,7 @@ group.append({
 name = 'micro-ecc'
 path = os.path.join(COMPONENT_DIR, name)
 src = Glob(os.path.join(path, 'micro-ecc/uECC.c'))
-CPPPATH = ['include']
+CPPPATH = ['micro-ecc']
 group.append({
 	'name': name,
 	'path': path,
@@ -279,14 +300,20 @@ path = os.path.join(COMPONENT_DIR, name)
 src = Glob(os.path.join(path, '*.c'))
 CPPPATH = ['include', 'platform_include']
 LIBPATH = ['lib', '.']
-LIBS = os.path.join(os.path.join(path, 'lib'),
-					 'libm.a')
+# LIBS = [os.path.join(os.path.join(path, 'lib'),
+# 					 'libm.a')]
+# if GetDepend(BuildOptions, 'CONFIG_NEWLIB_NANO_FORMAT'):
+# 	LIBS += [os.path.join(os.path.join(path, 'lib'),
+# 					 'libc_nano.a')]
+# else:
+# 	LIBS += [os.path.join(os.path.join(path, 'lib'),
+# 					 'libc.a')]
+LIBS = ['libm.a']
 if GetDepend(BuildOptions, 'CONFIG_NEWLIB_NANO_FORMAT'):
-	LIBS = os.path.join(os.path.join(path, 'lib'),
-					 'libc_nano.a')
+	LIBS += ['libc_nano.a']
 else:
-	LIBS = os.path.join(os.path.join(path, 'lib'),
-					 'libc.a')
+	LIBS += ['libc.a']
+
 group.append({
 	'name': name,
 	'path': path,
@@ -390,7 +417,7 @@ name = 'wpa_supplicant'
 path = os.path.join(COMPONENT_DIR, name)
 src = [ Glob(os.path.join(path, item)) for item in [
 				'port/*.c',
-				'src/crypto//*.c'
+				'src/crypto/*.c'
 				]]
 CPPPATH = ['include', 'port/include']
 LOCAL_CCFLAGS = ['-DEMBEDDED_SUPP', '-D__ets__', '-Wno-strict-aliasing']
@@ -413,4 +440,47 @@ group.append({
 	'src': src,
 	'CPPPATH': CPPPATH
 	})
-print [item['name'] for item in group]
+
+for component in group:
+	# if component.has_key('src'):
+	# 	Sources.extend(component['src'])
+
+	if component.has_key('CPPPATH'):
+		tmp = [os.path.join(component['path'], item) for item in component['CPPPATH']]
+		env.AppendUnique(CPPPATH = tmp)
+
+	if component.has_key('LINKFLAGS'):
+		tmp = ' '.join(component['LINKFLAGS'])
+		env.AppendUnique(LINKFLAGS = tmp + ' ')
+
+	if component.has_key('CCFLAGS'):
+		env.AppendUnique(CCFLAGS = component['CCFLAGS'])
+
+	if component.has_key('LIBS'):
+		env.AppendUnique(LIBS = component['LIBS'])
+
+	if component.has_key('LIBPATH'):
+		tmp = [os.path.join(component['path'], item) for item in component['LIBPATH']]
+		env.AppendUnique(LIBPATH = tmp)
+
+libs = []
+for component in group:
+	if not component.has_key('src'):
+		continue 
+	local_cpppath = []
+	local_ccflags = []
+	if component.has_key('LOCAL_CPPPATH'):
+		tmp = [os.path.join(component['path'], item) for item in component['LOCAL_CPPPATH']]
+		local_cpppath = tmp
+	if component.has_key('LOCAL_CCFLAGS'):
+		local_ccflags = component['LOCAL_CCFLAGS']
+
+	lib = env.Library(component['name'], component['src'],
+				CCFLAGS = env['CCFLAGS'] + local_ccflags,
+				CPPPATH = env['CPPPATH'] + local_cpppath)
+	libs.extend(lib)
+
+outld = env.Outld("esp32_out.ld", IDF_PATH + '/components/esp32/ld/esp32.ld')
+elf = env.Program(APP_ELF, libs)
+env.Depends(elf, outld)
+bin = env.ConvertELF(APP_BIN, APP_ELF)
